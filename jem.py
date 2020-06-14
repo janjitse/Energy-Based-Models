@@ -22,6 +22,8 @@ from tensorboardX import SummaryWriter
 import torchvision.utils as vutils
 import logging
 import argparse
+from pathlib import Path
+from typing import Tuple, List
 
 from models import BasicNet, DeeperNet
 from loaders import loader_mnist, loader_fmnist
@@ -43,7 +45,7 @@ def sgld(
     alpha: float,
     sigma: float,
     random_reinit_freq: float,
-):
+) -> Tuple[torch.Tensor, List]:
     samples, classes = buffer.sample(nr_samples, random_reinit_freq)
     samples = samples[torch.randperm(nr_samples)]
     model.eval()
@@ -63,6 +65,11 @@ def sgld(
     return samples, energies
 
 
+def save_checkpoint(model: nn.Module, buffer: SampleBuffer, save_dir: Path, tag):
+    checkpoint_dict = {"model_state": model.state_dict(), "sample_buffer": buffer}
+    torch.save(checkpoint_dict, save_dir / tag)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--cuda", default=True, type=bool)
@@ -76,6 +83,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--buffer_size", default=1e4, type=int)
     parser.add_argument("--image_noise", default=0.01, type=float)
+    parser.add_argument("--save_dir", default=".", type=str)
 
     args = parser.parse_args()
 
@@ -151,3 +159,6 @@ if __name__ == "__main__":
             examples, _ = samplebuffer.sample(5, reinit_freq=0)
             writer.add_image("generated", vutils.make_grid(examples.data), e)
             writer.add_image("real", vutils.make_grid(images.data[:5]), e)
+            save_checkpoint(
+                network, samplebuffer, Path(args.save_dir), "last_checkpoint.pt"
+            )
