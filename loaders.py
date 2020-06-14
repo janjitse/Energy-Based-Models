@@ -16,7 +16,9 @@ import torch
 import torchvision
 
 
-def loader_mnist(batch_size: int, train: bool = True) -> torch.utils.data.DataLoader:
+def loader_mnist(
+    batch_size: int, train: bool = True, image_noise=0.01
+) -> torch.utils.data.DataLoader:
     return torch.utils.data.DataLoader(
         torchvision.datasets.MNIST(
             "files/",
@@ -26,7 +28,7 @@ def loader_mnist(batch_size: int, train: bool = True) -> torch.utils.data.DataLo
                 [
                     torchvision.transforms.ToTensor(),
                     torchvision.transforms.Normalize((0.5,), (0.5,)),
-                    lambda x: x + 0.03 * torch.randn_like(x) if train else x,
+                    lambda x: x + image_noise * torch.randn_like(x) if train else x,
                 ]
             ),
         ),
@@ -37,7 +39,9 @@ def loader_mnist(batch_size: int, train: bool = True) -> torch.utils.data.DataLo
     )
 
 
-def loader_fmnist(batch_size: int, train: bool = True) -> torch.utils.data.DataLoader:
+def loader_fmnist(
+    batch_size: int, train: bool = True, image_noise=0.01
+) -> torch.utils.data.DataLoader:
     return torch.utils.data.DataLoader(
         torchvision.datasets.FashionMNIST(
             "files/",
@@ -47,7 +51,7 @@ def loader_fmnist(batch_size: int, train: bool = True) -> torch.utils.data.DataL
                 [
                     torchvision.transforms.ToTensor(),
                     torchvision.transforms.Normalize((0.5,), (0.5,)),
-                    lambda x: x + 0.03 * torch.randn_like(x) if train else x,
+                    lambda x: x + image_noise * torch.randn_like(x) if train else x,
                 ]
             ),
         ),

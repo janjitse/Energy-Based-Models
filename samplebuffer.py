@@ -19,7 +19,7 @@ from typing import NoReturn, Tuple
 
 
 class SampleBuffer:
-    def __init__(self, max_samples: int = 10e4):
+    def __init__(self, max_samples: int = 1e4):
         self.max_samples = max_samples
         self.buffer = []
 

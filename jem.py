@@ -21,43 +21,18 @@ import numpy as np
 from tensorboardX import SummaryWriter
 import torchvision.utils as vutils
 import logging
+import argparse
 
 from models import BasicNet, DeeperNet
 from loaders import loader_mnist, loader_fmnist
 from samplebuffer import SampleBuffer
 from evaluate import evaluate_acc, generate_unconditional
 
-N_EPOCHS = 20
-BATCH_SIZE = 64
-LR = 1e-4
-CHAIN_LENGTH = 20
-REINIT_FREQ_START = 0.05
-REINIT_DECAY_RATE = 1.0
-REINIT_MIN = 0.05
-ALPHA = 1.0
-SIGMA = 0.01
 
 RANDOM_SEED = 42
 
-device = torch.device("cuda")
-torch.backends.cudnn.enabled = True
 
 torch.manual_seed(RANDOM_SEED)
-
-train_loader = loader_fmnist(BATCH_SIZE)
-test_loader = loader_fmnist(BATCH_SIZE, train=False)
-
-image_shape = iter(train_loader).next()[0].shape[1:]
-
-network = BasicNet(input_shape=image_shape)
-network.cuda()
-optimizer = optim.SGD(network.parameters(), lr=LR)
-
-samplebuffer = SampleBuffer()
-
-objective_clf = nn.CrossEntropyLoss()
-
-reinit_freq = REINIT_FREQ_START
 
 
 def sgld(
@@ -89,8 +64,50 @@ def sgld(
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cuda", default=True, type=bool)
+    parser.add_argument("--dataset", default="MNIST", choices=["MNIST", "FMNIST"])
+    parser.add_argument("--lr", default=1e-4, type=float)
+    parser.add_argument("--n_epochs", default=20, type=int)
+    parser.add_argument("--chain_length", default=20, type=int)
+    parser.add_argument("--reinit_rate", default=0.05, type=float)
+    parser.add_argument("--alpha", default=1.0, type=float)
+    parser.add_argument("--sigma", default=0.01, type=float)
+    parser.add_argument("--batch_size", default=64, type=int)
+    parser.add_argument("--buffer_size", default=1e4, type=int)
+    parser.add_argument("--image_noise", default=0.01, type=float)
+
+    args = parser.parse_args()
+
+    REINIT_FREQ_START = 0.05
+    REINIT_DECAY_RATE = 1.0
+    REINIT_MIN = 0.05
+
+    if args.dataset == "MNIST":
+        train_loader = loader_mnist(args.batch_size, image_noise=args.image_noise)
+        test_loader = loader_mnist(args.batch_size, train=False)
+    elif args.dataset == "FMNIST":
+        train_loader = loader_fmnist(args.batch_size, image_noise=args.image_noise)
+        test_loader = loader_fmnist(args.batch_size, train=False)
+    reinit_freq = args.reinit_rate
+
+    if args.cuda:
+        device = torch.device("cuda")
+        torch.backends.cudnn.enabled = True
+    else:
+        device = torch.device("cpu")
+
+    image_shape = iter(train_loader).next()[0].shape[1:]
+
+    network = BasicNet(input_shape=image_shape)
+    network.to(device)
+
+    optimizer = optim.SGD(network.parameters(), lr=args.lr)
+    samplebuffer = SampleBuffer(max_samples=args.buffer_size)
+    objective_clf = nn.CrossEntropyLoss()
     writer = SummaryWriter()
-    for e in range(N_EPOCHS):
+
+    for e in range(args.n_epochs):
         time0 = time()
         reinit_freq = max(REINIT_MIN, reinit_freq * REINIT_DECAY_RATE)
         losses_clf = []
@@ -104,9 +121,9 @@ if __name__ == "__main__":
                 network,
                 samplebuffer,
                 images.shape[0],
-                CHAIN_LENGTH,
-                ALPHA,
-                SIGMA,
+                args.chain_length,
+                args.alpha,
+                args.sigma,
                 reinit_freq,
             )
             output = network(images)
