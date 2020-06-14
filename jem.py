@@ -80,7 +80,7 @@ def sgld(
         x_t.data += -alpha * torch.autograd.grad(energy, x_t)[
             0
         ] + sigma * torch.randn_like(x_t)
-        # somehow normalize based on this data?
+        # TODO: somehow normalize based on this data?
         energies.append(energy.detach().cpu().numpy())
     samples = x_t.detach()
     model.train()
@@ -131,8 +131,6 @@ if __name__ == "__main__":
             writer.add_scalar("generator_loss", np.mean(losses_gen), e)
             writer.add_scalar("classifier_loss", np.mean(losses_clf), e)
             writer.add_scalar("energy", np.mean(energies), e)
-            # fig = generate_unconditional(samplebuffer, 5)
             examples, _ = samplebuffer.sample(5, reinit_freq=0)
             writer.add_image("generated", vutils.make_grid(examples.data), e)
             writer.add_image("real", vutils.make_grid(images.data[:5]), e)
-            # fig.savefig(f"images_epoch_{e}.png")
